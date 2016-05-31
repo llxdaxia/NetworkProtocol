@@ -5,109 +5,95 @@ import jpcap.NetworkInterface;
 import jpcap.NetworkInterfaceAddress;
 import jpcap.packet.ARPPacket;
 import jpcap.packet.EthernetPacket;
-import jpcap.packet.Packet;
 
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Date;
-import java.util.Scanner;
 
 public class ARPCaptor {
 
-    private static JpcapCaptor captor;
     private static NetworkInterface[] devices;
     private static final String fileName = ".\\ARP_info.txt";
 
     public static void main(String[] args) throws Exception {
-        long start = System.currentTimeMillis();
+        ARPCaptor arpCaptor = new ARPCaptor();
+        arpCaptor.start();
+    }
+
+
+    public void start() {
+
         File file = new File(fileName);
-        if(file.exists()){
+        if (file.exists()) {
             file.delete();
         }
 
         writeFile("代码运行开始时间：" + new Date());
 
-        showNetworkAdapterInfo();
+        showNetworkAdapterInfo();   //打印网卡信息
 
-        writeFile("输入打开网卡的序号：");
-        Scanner scanner = new Scanner(System.in);
+        for (int i = 0; i < devices.length; i++) {
 
-        openDevice(scanner.nextInt() - 1);  //打开网卡
-        setFilter("arp");    //设置3过滤ARP数据包
+            try {
+                JpcapCaptor jpcapCaptor = openDevice(devices[i]);  //打开网卡
+                printARPPacketInfo(jpcapCaptor, i + 1);
 
-        writeFile("======================== ARP 数据包解析 ========================");
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+    }
+
+    public void printARPPacketInfo(JpcapCaptor captor, int position) {
+
+        writeFile("========================第 " + position + " 网卡 ARP 数据包解析 ========================");
         System.out.println();
 
-        for (int i = 0; i < 15; i++) { // 包的数量为 5
-            ARPPacket arp = arpCap();
-            EthernetPacket e = (EthernetPacket) arp.datalink;
+        long start = System.currentTimeMillis();
+        for (int i = 0; i < 5; i++) { // 包的数量为 5
+            ARPPacket arp = arpCap(captor);   //抓包
+            EthernetPacket ethernetPacket = (EthernetPacket) arp.datalink;
 
             writeFile("-------------- 包 " + (i + 1) + "--------------");
             System.out.println();
 
-            // EthernetPacket
-            String sourceAddress = e.getSourceAddress();
-            String destinationAddress = e.getDestinationAddress();
-            short frameType = e.frametype;
+            // EthernetPacket   以太网数据包
+            String sourceAddress = ethernetPacket.getSourceAddress();   //源mac地址
+            String destinationAddress = ethernetPacket.getDestinationAddress();  //目的mac地址
 
-            writeFile("源MAC地址: " + sourceAddress);
-            writeFile("目的MAC地址: " + destinationAddress);
-            writeFile("帧类型: " + frameType);
-
+            writeFile("帧类型: " + ethernetPacket.frametype);
             // arp 内容解析
-            short protoType = arp.prototype;
-            Object senderProtocolAddress = arp.getSenderProtocolAddress();
-            Object senderHardwareAddress = arp.getSenderHardwareAddress();
-            Object targetProtocolAddress = arp.getTargetProtocolAddress();
-            Object targetHardewareAddress = arp.getTargetHardwareAddress();
-            int capturedLength = arp.caplen;
-            int packetLength = arp.len;
-            long timestamp_s = arp.sec;
-            long timestamp_us = arp.usec;
-            short hardType = arp.hardtype;
-            short hardLength = arp.hlen;
-            short operation = arp.operation;
+            writeFile("协议类型: " + arp.prototype);
+            writeFile("源协议地址和MAC地址: " + arp.getSenderProtocolAddress() + " -- " + arp.getSenderHardwareAddress());
+            writeFile("目的协议地址和MAC地址： " + arp.getTargetProtocolAddress() + " -- " + arp.getTargetHardwareAddress());
+            writeFile("数据报长度: " + arp.caplen);
+            writeFile("长度: " + arp.len);
+            writeFile("时间戳(秒): " + arp.sec);
+            writeFile("时间戳(微妙): " + arp.usec);
+            writeFile("硬件类型: " + arp.hardtype);
+            writeFile("硬件地址长度: " + arp.hlen);
+            writeFile("操作: " + arp.operation);
 
-            short arpRequest = ARPPacket.ARP_REQUEST;
-            short arpReply = ARPPacket.ARP_REPLY;
-            Packet eof = ARPPacket.EOF;
-            short frameRelay = ARPPacket.HARDTYPE_FRAMERELAY;
-            short tokenRing = ARPPacket.HARDTYPE_IEEE802;
-            short protoIP = ARPPacket.PROTOTYPE_IP;
-            short rarpRequest = ARPPacket.RARP_REQUEST;
-            short rarpReply = ARPPacket.RARP_REPLY;
-            String data = new String(arp.data);
-
-            writeFile("协议类型: " + protoType);
-            writeFile("源协议地址和MAC地址: " + senderProtocolAddress + " -- " + senderHardwareAddress);
-            writeFile("目的协议地址和MAC地址： " + targetProtocolAddress + " -- " + targetHardewareAddress);
-            writeFile("数据报长度: " + capturedLength);
-            writeFile("长度: " + packetLength);
-            writeFile("时间戳(秒): " + timestamp_s);
-            writeFile("时间戳(微妙): " + timestamp_us);
-            writeFile("硬件类型: " + hardType);
-            writeFile("硬件地址长度: " + hardLength);
-            writeFile("操作: " + operation);
-
-            writeFile("ARP请求: " + arpRequest);
-            writeFile("ARP应答: " + arpReply);
-            writeFile("EOF: " + eof);
-            writeFile("硬件类型-帧中继: " + frameRelay);
-            writeFile("硬件类型-IEEE802(令牌环)： " + tokenRing);
-            writeFile("协议类型-IP: " + protoIP);
-            writeFile("RARP请求: " + rarpRequest);
-            writeFile("RARP应答: " + rarpReply);
-            writeFile("数据: " + data);
+            writeFile("ARP请求: " + ARPPacket.ARP_REQUEST);
+            writeFile("ARP应答: " + ARPPacket.ARP_REPLY);
+            writeFile("EOF: " + ARPPacket.EOF);
+            writeFile("硬件类型-帧中继: " + ARPPacket.HARDTYPE_FRAMERELAY);
+            writeFile("硬件类型-IEEE802(令牌环)： " + ARPPacket.HARDTYPE_IEEE802);
+            writeFile("协议类型-IP: " + ARPPacket.PROTOTYPE_IP);
+            writeFile("RARP请求: " + ARPPacket.RARP_REQUEST);
+            writeFile("RARP应答: " + ARPPacket.RARP_REPLY);
+            writeFile("数据: " + Arrays.toString(arp.data));
             System.out.println();
         }
-
         long end = System.currentTimeMillis();
-        System.out.println();
         writeFile("代码运行结束时间： " + new Date());
         writeFile("抓取5个数据包耗时 " + (end - start) + "毫秒");
+        System.out.println();
     }
 
     /**
@@ -115,7 +101,7 @@ public class ARPCaptor {
      *
      * @throws Exception
      */
-    public static void openDevice(int deviceNum) throws Exception {
+    public static JpcapCaptor openDevice(NetworkInterface device) throws Exception {
 
 		/*
          *  开启网卡准备抓包
@@ -124,7 +110,9 @@ public class ARPCaptor {
 		 *  第三个参数：是否为混杂模式
 		 *  第四个参数：超时，2秒
 		 */
-        captor = JpcapCaptor.openDevice(devices[deviceNum], 65535, true, 2000);
+        JpcapCaptor captor = JpcapCaptor.openDevice(device, 65535, true, 2000);
+        captor.setFilter("arp", true);
+        return captor;
     }
 
     /**
@@ -133,7 +121,7 @@ public class ARPCaptor {
      * @param filter 过滤数据包类型
      * @throws IOException
      */
-    public static void setFilter(String filter) throws IOException {
+    public static void setFilter(JpcapCaptor captor, String filter) throws IOException {
         captor.setFilter(filter, true);
     }
 
@@ -142,7 +130,7 @@ public class ARPCaptor {
      *
      * @return
      */
-    public static ARPPacket arpCap() {
+    public static ARPPacket arpCap(JpcapCaptor captor) {
         ARPPacket arp;
         while (true) {
             arp = (ARPPacket) captor.getPacket();
@@ -161,7 +149,6 @@ public class ARPCaptor {
 
         System.out.println();
         writeFile("========================= 网卡信息 ==========================");
-        System.out.println();
 
         int i = 1;
         for (NetworkInterface device : devices) {
@@ -170,6 +157,7 @@ public class ARPCaptor {
             String dataLinkName = device.datalink_name;
             String dataLinkDesc = device.datalink_description;
 
+            System.out.println();
             writeFile("网卡 " + (i++) + ": " + netInterfaceName + "(" + netInterDescription + ")");
             writeFile("数据链路层信息: " + dataLinkName + "(" + dataLinkDesc + ")");
 
@@ -198,7 +186,9 @@ public class ARPCaptor {
     }
 
     public static void writeFile(String info) {
+
         System.out.println(info);
+
         try {
             BufferedWriter out = new BufferedWriter(new FileWriter(fileName, true));
             out.write(info + "\r\n");

@@ -4,7 +4,6 @@ import jpcap.JpcapCaptor;
 import jpcap.NetworkInterfaceAddress;
 import jpcap.PacketReceiver;
 import jpcap.packet.ARPPacket;
-import jpcap.packet.IPPacket;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -18,8 +17,6 @@ public class ARPMsg implements Runnable {
             System.in));
     static int i = 0;
     static String str;
-    static IPPacket p;
-    static IPPacket ip;
     static boolean bl = true;
 
     public static void main(String[] args) {
