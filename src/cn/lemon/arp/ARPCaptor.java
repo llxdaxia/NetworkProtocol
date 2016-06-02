@@ -16,8 +16,8 @@ import java.util.Date;
 
 public class ARPCaptor {
 
-    private static NetworkInterface[] devices;
-    private static final String fileName = ".\\ARP_info.txt";
+    private static NetworkInterface[] devices;    //所有网卡设备
+    private static final String fileName = ".\\ARP_info.txt";    //日志文件地址
 
     public static void main(String[] args) throws Exception {
         ARPCaptor arpCaptor = new ARPCaptor();
@@ -57,6 +57,9 @@ public class ARPCaptor {
         long start = System.currentTimeMillis();
         for (int i = 0; i < 5; i++) { // 包的数量为 5
             ARPPacket arp = arpCap(captor);   //抓包
+            if (arp == null) {
+                return;
+            }
             EthernetPacket ethernetPacket = (EthernetPacket) arp.datalink;
 
             writeFile("-------------- 包 " + (i + 1) + "--------------");
@@ -132,10 +135,14 @@ public class ARPCaptor {
      */
     public static ARPPacket arpCap(JpcapCaptor captor) {
         ARPPacket arp;
+        long startTime = System.currentTimeMillis();
         while (true) {
             arp = (ARPPacket) captor.getPacket();
             if (arp != null)
                 return arp;
+            if (System.currentTimeMillis() - startTime > 10000) {
+                return null;
+            }
         }
     }
 
