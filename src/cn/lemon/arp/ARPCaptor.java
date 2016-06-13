@@ -5,6 +5,7 @@ import jpcap.NetworkInterface;
 import jpcap.NetworkInterfaceAddress;
 import jpcap.packet.ARPPacket;
 import jpcap.packet.EthernetPacket;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -133,6 +134,7 @@ public class ARPCaptor {
      *
      * @return
      */
+    @Nullable
     public static ARPPacket arpCap(JpcapCaptor captor) {
         ARPPacket arp;
         long startTime = System.currentTimeMillis();
